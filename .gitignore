@@ -1,3 +1,7 @@
+# Homm specific
+*.log
+data/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -51,4 +55,3 @@ coverage.xml
 
 # Sphinx documentation
 docs/_build/
-
