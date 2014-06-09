@@ -26,7 +26,7 @@ class Customer(Entity):
     return "%s" % (str(self.name))
 
   def create(self):
-    """Return the sql required to create this customer"""
+    """Return the sql required to create this object"""
     return {"insert into customers values (?,?)":
       (str(self.id),str(self.name),)}
 
@@ -35,6 +35,14 @@ class Project(Entity):
     self.id = id
     self.name = name
     self.customer_id = customer_id
+
+  def __repr__(self):
+    return "%s" % (str(self.name))
+
+  def create(self):
+    """Return the sql required to create this object"""
+    return {"insert into projects (id,name,customer_id) values (?,?,?)":
+      (str(self.id),str(self.name),str(self.customer_id),)}
 
 class Manager(object):
   def __init__(self, database):
@@ -45,13 +53,23 @@ class Manager(object):
     # Make sure we can access the columns by name
     self.database.row_factory = sqlite3.Row
 
-    # Initialize the customers list
+    # Initialize the lists
     self.customers = {}
+    self.projects = {}
 
     # Build the customers list
-    cust_cursor = self.database.execute("select * from customers")
-    for row in cust_cursor:
+    cursor = self.database.execute("select * from customers")
+    for row in cursor:
       self.customers[row['id']] = Customer(name = row['name'], id = row['id'])
+
+    # Build the projects list
+    cursor = self.database.execute("select * from projects")
+    for row in cursor:
+      self.projects[row['id']] = Project(name = row['name'],
+                                         id = row['id'],
+                                         customer_id = row['customer_id'])
+
+    return True
 
   def create(self,obj):
     try:
@@ -64,12 +82,34 @@ class Manager(object):
       print "%s already exists" % obj.id
       return False
 
+  def get(self,type,id):
+    if type == "customer":
+      return self.customers[id] if id in self.customers else None
+    if type == "project":
+      return self.projects[id] if id in self.projects else None
+
   def list(self):
+    raise NotImplementedError
     customers = []
     cust_cursor = database.execute("select * from customers")
     for row in cust_cursor:
       customers[row['name']] = row['id']
     return customers
+
+  def project_list(self,customer = None):
+    # Make sure we can access the columns by name
+    self.database.row_factory = sqlite3.Row
+
+    # Initialize the projects list
+    projects = {}
+
+    # Build the projects list
+    if customer:
+      cursor = self.database.execute("select * from projects where customer_id = ?", (customer.id,))
+      for row in cursor:
+        projects[row['id']] = row['name']
+
+    return projects
 
 if __name__ == "__main__":
   # Parse command line arguments
@@ -130,6 +170,7 @@ if __name__ == "__main__":
       with db:
         log.info("__main__:Migrating to schema version 1")
         db.execute("CREATE TABLE customers (id text, name text)")
+        db.execute("CREATE TABLE projects (id text, name text, customer_id text)")
         db.execute("PRAGMA user_version = 1")
     tableListQuery = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY Name"
     tables = map(lambda t: t[0], db.execute(tableListQuery).fetchall())
@@ -142,10 +183,13 @@ if __name__ == "__main__":
     log.info("__main__:Creating customer 'test'")
     manager.create(Customer("test"))
     log.info("__main__:Customer list %s" % str(manager.customers))
+    customer = manager.get("customer",manager.customers.keys()[0])
 
-    # log.info("__main__:Creating project 'test project'")
-    # project = Project("test project",customer_id = customer.id)
-    # log.info("__main__:Customer '%s' project list is %s" % (project.name,project.id))
+    log.info("__main__:Creating project 'test project'")
+    manager.create(Project("test project",customer_id = customer.id))
+    log.info("__main__:Customer '%s' project list is %s" % (customer.name,manager.project_list(customer)))
+
+    log.info("__main__:Total project list is %s" % manager.projects)
     log.info("__main__:Deleting data/test.db")
     os.remove('data/test.db')
 
