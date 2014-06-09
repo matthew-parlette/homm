@@ -7,7 +7,17 @@ import sys
 import sqlite3
 from uuid import uuid4
 
-class Customer(object):
+class Entity(object):
+  def __init__(self):
+    raise NotImplementedError
+
+  def create(self):
+    """Returns a dictionary with sql and parameters:
+    {'insert into table values (?,?)': (self.param1,self.param2,)}
+    """
+    raise NotImplementedError
+
+class Customer(Entity):
   def __init__(self,name,id = uuid4()):
     self.id = id
     self.name = name
@@ -15,7 +25,12 @@ class Customer(object):
   def __repr__(self):
     return "%s" % (str(self.name))
 
-class Project(object):
+  def create(self):
+    """Return the sql required to create this customer"""
+    return {"insert into customers values (?,?)":
+      (str(self.id),str(self.name),)}
+
+class Project(Entity):
   def __init__(self,name,id = uuid4(),customer_id = None):
     self.id = id
     self.name = name
@@ -24,9 +39,9 @@ class Project(object):
 class Manager(object):
   def __init__(self, database):
     self.database = database
-    self.refresh_customers()
+    self.refresh()
 
-  def refresh_customers(self):
+  def refresh(self):
     # Make sure we can access the columns by name
     self.database.row_factory = sqlite3.Row
 
@@ -38,17 +53,18 @@ class Manager(object):
     for row in cust_cursor:
       self.customers[row['id']] = Customer(name = row['name'], id = row['id'])
 
-  def create_customer(self,customer):
+  def create(self,obj):
     try:
       with self.database:
-        self.database.execute("insert into customers(id,name) values (?,?)", (str(customer.id),str(customer.name),))
-      self.refresh_customers()
+        for sql,parameters in obj.create().iteritems():
+          self.database.execute(sql, parameters)
+      self.refresh()
       return True
     except sqlite3.IntegrityError:
-      print "Customer %s already exists" % customer.name
+      print "%s already exists" % obj.id
       return False
 
-  def list_customers(self):
+  def list(self):
     customers = []
     cust_cursor = database.execute("select * from customers")
     for row in cust_cursor:
@@ -124,11 +140,12 @@ if __name__ == "__main__":
   if args.test:
     log.info("__main__:Running functionality tests")
     log.info("__main__:Creating customer 'test'")
-    manager.create_customer(Customer("test"))
+    manager.create(Customer("test"))
     log.info("__main__:Customer list %s" % str(manager.customers))
+
     # log.info("__main__:Creating project 'test project'")
     # project = Project("test project",customer_id = customer.id)
-    # log.info("__main__:Project '%s' has id '%s'" % (project.name,project.id))
+    # log.info("__main__:Customer '%s' project list is %s" % (project.name,project.id))
     log.info("__main__:Deleting data/test.db")
     os.remove('data/test.db')
 
