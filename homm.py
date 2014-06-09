@@ -7,20 +7,13 @@ import sys
 import sqlite3
 from uuid import uuid4
 
-class Entity(object):
-  def __init__(self):
-    raise NotImplementedError
-
-  def migrate(self):
-    pass
-
 class Customer(object):
   def __init__(self,name,id = uuid4()):
     self.id = id
     self.name = name
 
   def __repr__(self):
-    return "%s (%s)" % (str(self.name),str(self.id))
+    return "%s" % (str(self.name))
 
 class Project(object):
   def __init__(self,name,id = uuid4(),customer_id = None):
@@ -38,17 +31,18 @@ class Manager(object):
     self.database.row_factory = sqlite3.Row
 
     # Initialize the customers list
-    self.customers = []
+    self.customers = {}
 
     # Build the customers list
     cust_cursor = self.database.execute("select * from customers")
     for row in cust_cursor:
-      self.customers.append(Customer(name = row['name'], id = row['id']))
+      self.customers[row['id']] = Customer(name = row['name'], id = row['id'])
 
   def create_customer(self,customer):
     try:
       with self.database:
         self.database.execute("insert into customers(id,name) values (?,?)", (str(customer.id),str(customer.name),))
+      self.refresh_customers()
       return True
     except sqlite3.IntegrityError:
       print "Customer %s already exists" % customer.name
@@ -131,10 +125,11 @@ if __name__ == "__main__":
     log.info("__main__:Running functionality tests")
     log.info("__main__:Creating customer 'test'")
     manager.create_customer(Customer("test"))
-    # log.info("__main__:Customer '%s' has id '%s'" % (customer.name,customer.id))
     log.info("__main__:Customer list %s" % str(manager.customers))
     # log.info("__main__:Creating project 'test project'")
     # project = Project("test project",customer_id = customer.id)
     # log.info("__main__:Project '%s' has id '%s'" % (project.name,project.id))
+    log.info("__main__:Deleting data/test.db")
+    os.remove('data/test.db')
 
   db.close()
