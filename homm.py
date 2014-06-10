@@ -41,6 +41,12 @@ class Project(Entity):
     return {"insert into projects (id,name,parent_id) values (?,?,?)":
       (str(self.id),str(self.name),str(self.parent_id),)}
 
+class Task(Entity):
+  def create(self):
+    """Return the sql required to create this object"""
+    return {"insert into tasks (id,name,parent_id) values (?,?,?)":
+      (str(self.id),str(self.name),str(self.parent_id),)}
+
 class Manager(object):
   def __init__(self, database):
     self.database = database
@@ -57,6 +63,7 @@ class Manager(object):
     # Initialize the lists
     self.customers = {}
     self.projects = {}
+    self.tasks = {}
 
     # Build the customers list
     cursor = self.database.execute("select * from customers")
@@ -67,6 +74,15 @@ class Manager(object):
     cursor = self.database.execute("select * from projects")
     for row in cursor:
       self.projects[row['id']] = Project(name = row['name'],
+                                         id = row['id'],
+                                         parameters =
+                                           {"parent_id": row['parent_id']}
+                                        )
+
+    # Build the tasks list
+    cursor = self.database.execute("select * from tasks")
+    for row in cursor:
+      self.tasks[row['id']] = Task(name = row['name'],
                                          id = row['id'],
                                          parameters =
                                            {"parent_id": row['parent_id']}
@@ -177,33 +193,51 @@ if __name__ == "__main__":
         log.info("__main__:Migrating to schema version 1")
         db.execute("CREATE TABLE customers (id text, name text)")
         db.execute("CREATE TABLE projects (id text, name text, parent_id text)")
+        db.execute("CREATE TABLE tasks (id text, name text, parent_id text)")
         db.execute("PRAGMA user_version = 1")
     tableListQuery = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY Name"
     tables = map(lambda t: t[0], db.execute(tableListQuery).fetchall())
     log.debug("__main__:Tables in database are\n%s" % tables)
-    assert len(tables) == 2
+    assert len(tables) == 3
 
   manager = Manager(db)
 
   if args.test:
     log.info("__main__:Running functionality tests")
-    log.info("__main__:Testing Customer")
-    log.debug("__main__:Creating customer 'test'")
-    manager.create(Customer("test"))
-    log.debug("__main__:Customer list %s" % str(manager.customers))
-    assert len(manager.customers) == 1
-    customer = manager.get("customer",manager.customers.keys()[0])
+    try:
+      # Customer
+      log.info("__main__:Testing Customer")
+      log.debug("__main__:Creating customer 'test'")
+      manager.create(Customer("test"))
+      log.debug("__main__:Customer list %s" % str(manager.customers))
+      assert len(manager.customers) == 1
+      customer = manager.get("customer",manager.customers.keys()[0])
 
-    log.info("__main__:Testing Project")
-    log.debug("__main__:Creating project 'test project'")
-    manager.create(Project("test project",parameters = {"parent_id": customer.id}))
-    test_customer_project_list = manager.list("project",{"parent_id":customer.id})
-    assert len(test_customer_project_list) == 1
-    log.debug("__main__:Customer '%s' project list is %s" %
-      (customer.name,test_customer_project_list))
+      # Project
+      log.info("__main__:Testing Project")
+      log.debug("__main__:Creating project 'test project'")
+      manager.create(Project("test project",parameters = {"parent_id": customer.id}))
+      test_customer_project_list = manager.list("project",{"parent_id":customer.id})
+      assert len(test_customer_project_list) == 1
+      log.debug("__main__:Customer '%s' project list is %s" %
+        (customer.name,test_customer_project_list))
+      log.debug("__main__:Total project list is %s" % manager.projects)
+      assert len(manager.projects) == 1
+      project = manager.get("project",manager.projects.keys()[0])
 
-    log.debug("__main__:Total project list is %s" % manager.projects)
-    assert len(manager.projects) == 1
+      # Task
+      log.info("__main__:Testing Task")
+      log.debug("__main__:Creating task 'task 1'")
+      manager.create(Task("task 1",parameters = {"parent_id": project.id}))
+      test_project_task_list = manager.list("project",{"parent_id":project.id})
+      assert len(test_project_task_list) == 1
+      log.debug("__main__:Project '%s' task list is %s" %
+        (project.name,test_project_task_list))
+      log.debug("__main__:Total task list is %s" % manager.tasks)
+      assert len(manager.tasks) == 1
+    except AssertionError, e:
+      log.critical("__main__:Test failed\n%s" % str(e))
+
     log.debug("__main__:Deleting data/test.db")
     os.remove('data/test.db')
 
