@@ -36,15 +36,10 @@ class Customer(Entity):
       (str(self.id),str(self.name),)}
 
 class Project(Entity):
-  def __init__(self,name,id = uuid4(),customer_id = None):
-    self.id = id
-    self.name = name
-    self.customer_id = customer_id
-
   def create(self):
     """Return the sql required to create this object"""
-    return {"insert into projects (id,name,customer_id) values (?,?,?)":
-      (str(self.id),str(self.name),str(self.customer_id),)}
+    return {"insert into projects (id,name,parent_id) values (?,?,?)":
+      (str(self.id),str(self.name),str(self.parent_id),)}
 
 class Manager(object):
   def __init__(self, database):
@@ -73,7 +68,9 @@ class Manager(object):
     for row in cursor:
       self.projects[row['id']] = Project(name = row['name'],
                                          id = row['id'],
-                                         customer_id = row['customer_id'])
+                                         parameters =
+                                           {"parent_id": row['parent_id']}
+                                        )
 
     return True
 
@@ -130,7 +127,7 @@ class Manager(object):
 
     # Build the projects list
     if customer:
-      cursor = self.database.execute("select * from projects where customer_id = ?", (customer.id,))
+      cursor = self.database.execute("select * from projects where parent_id = ?", (customer.id,))
       for row in cursor:
         projects[row['id']] = row['name']
 
@@ -195,7 +192,7 @@ if __name__ == "__main__":
       with db:
         log.info("__main__:Migrating to schema version 1")
         db.execute("CREATE TABLE customers (id text, name text)")
-        db.execute("CREATE TABLE projects (id text, name text, customer_id text)")
+        db.execute("CREATE TABLE projects (id text, name text, parent_id text)")
         db.execute("PRAGMA user_version = 1")
     tableListQuery = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY Name"
     tables = map(lambda t: t[0], db.execute(tableListQuery).fetchall())
@@ -211,9 +208,9 @@ if __name__ == "__main__":
     customer = manager.get("customer",manager.customers.keys()[0])
 
     log.info("__main__:Creating project 'test project'")
-    manager.create(Project("test project",customer_id = customer.id))
+    manager.create(Project("test project",parameters = {"parent_id": customer.id}))
     log.info("__main__:Customer '%s' project list is %s" %
-      (customer.name,manager.list("project",{"customer_id":customer.id})))
+      (customer.name,manager.list("project",{"parent_id":customer.id})))
 
     log.info("__main__:Total project list is %s" % manager.projects)
     log.info("__main__:Deleting data/test.db")
