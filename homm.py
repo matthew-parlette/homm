@@ -75,7 +75,7 @@ class Manager(object):
     return True
 
   def create(self,obj):
-    self.pre()
+    # self.pre()
     try:
       with self.database:
         for sql,parameters in obj.create().iteritems():
