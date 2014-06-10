@@ -169,11 +169,11 @@ if __name__ == "__main__":
 
   database_name = 'data/test.db' if args.test else args.database
 
-  log.info("__main__:Opening database %s" % database_name)
+  log.debug("__main__:Opening database %s" % database_name)
   try:
     db = sqlite3.connect(database_name)
     # db = conn.cursor()
-    log.info("__main__:%s opened" % database_name)
+    log.debug("__main__:%s opened" % database_name)
   except:
     log.critical("__main__:Error opening %s" % database_name)
     sys.exit(1)
@@ -196,24 +196,31 @@ if __name__ == "__main__":
         db.execute("PRAGMA user_version = 1")
     tableListQuery = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY Name"
     tables = map(lambda t: t[0], db.execute(tableListQuery).fetchall())
-    log.info("__main__:Tables in database are\n%s" % tables)
+    log.debug("__main__:Tables in database are\n%s" % tables)
+    assert len(tables) == 2
 
   manager = Manager(db)
 
   if args.test:
     log.info("__main__:Running functionality tests")
-    log.info("__main__:Creating customer 'test'")
+    log.info("__main__:Testing Customer")
+    log.debug("__main__:Creating customer 'test'")
     manager.create(Customer("test"))
-    log.info("__main__:Customer list %s" % str(manager.customers))
+    log.debug("__main__:Customer list %s" % str(manager.customers))
+    assert len(manager.customers) == 1
     customer = manager.get("customer",manager.customers.keys()[0])
 
-    log.info("__main__:Creating project 'test project'")
+    log.info("__main__:Testing Project")
+    log.debug("__main__:Creating project 'test project'")
     manager.create(Project("test project",parameters = {"parent_id": customer.id}))
-    log.info("__main__:Customer '%s' project list is %s" %
-      (customer.name,manager.list("project",{"parent_id":customer.id})))
+    test_customer_project_list = manager.list("project",{"parent_id":customer.id})
+    assert len(test_customer_project_list) == 1
+    log.debug("__main__:Customer '%s' project list is %s" %
+      (customer.name,test_customer_project_list))
 
-    log.info("__main__:Total project list is %s" % manager.projects)
-    log.info("__main__:Deleting data/test.db")
+    log.debug("__main__:Total project list is %s" % manager.projects)
+    assert len(manager.projects) == 1
+    log.debug("__main__:Deleting data/test.db")
     os.remove('data/test.db')
 
   db.close()
