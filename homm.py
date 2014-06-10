@@ -139,7 +139,7 @@ if __name__ == "__main__":
   parser.add_argument('-d','--debug', action='store_true', help='Enable debug logging')
   parser.add_argument('-t','--test', action='store_true', help='Run functionality test')
   parser.add_argument('--database', default='data/production.db', help='Specify a database file to use')
-  parser.add_argument('--migrate', action='store_true', help='Update database schema')
+  parser.add_argument('-m','--migrate', action='store_true', help='Update database schema')
   parser.add_argument('--version', action='version', version='0')
   args = parser.parse_args()
 
@@ -150,7 +150,7 @@ if __name__ == "__main__":
   formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(message)s')
 
   ## Console Logging
-  if args.test:
+  if args.test or args.debug:
     ch = logging.StreamHandler()
     ch.setLevel(log_level)
     ch.setFormatter(formatter)
@@ -173,7 +173,7 @@ if __name__ == "__main__":
   try:
     db = sqlite3.connect(database_name)
     # db = conn.cursor()
-    log.debug("__main__:%s opened" % database_name)
+    log.info("__main__:%s opened" % database_name)
   except:
     log.critical("__main__:Error opening %s" % database_name)
     sys.exit(1)
@@ -183,7 +183,7 @@ if __name__ == "__main__":
   if schema_version < 1 and not (args.migrate or args.test):
     error_message = "Database is v%s, current is %s, run with -m" % (schema_version,str(1))
     log.critical(error_message)
-    print error_message
+    print "ERROR: %s" % error_message
     sys.exit(2)
 
   if args.migrate or args.test:
@@ -199,6 +199,8 @@ if __name__ == "__main__":
     tables = map(lambda t: t[0], db.execute(tableListQuery).fetchall())
     log.debug("__main__:Tables in database are\n%s" % tables)
     assert len(tables) == 3
+    assert db.execute("PRAGMA user_version").fetchone()[0] >= 1
+    log.debug("__main__:Database schema v1 appears to be correct")
 
   manager = Manager(db)
 
@@ -240,5 +242,7 @@ if __name__ == "__main__":
 
     log.debug("__main__:Deleting data/test.db")
     os.remove('data/test.db')
+
+
 
   db.close()
