@@ -49,6 +49,10 @@ class Manager(object):
     self.database = database
     self.refresh()
 
+  def pre(self):
+    """Executed before any manager command"""
+    self.refresh()
+
   def refresh(self):
     # Make sure we can access the columns by name
     self.database.row_factory = sqlite3.Row
@@ -72,6 +76,7 @@ class Manager(object):
     return True
 
   def create(self,obj):
+    self.pre()
     try:
       with self.database:
         for sql,parameters in obj.create().iteritems():
@@ -83,12 +88,14 @@ class Manager(object):
       return False
 
   def get(self,type,id = ""):
+    self.pre()
     if type == "customer":
       return self.customers[id] if id in self.customers else None
     if type == "project":
       return self.projects[id] if id in self.projects else None
 
   def list(self,type,filter = None):
+    self.pre()
     if "customer" in type:
       if filter:
         customers = {}
