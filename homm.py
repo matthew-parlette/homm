@@ -117,22 +117,6 @@ class Manager(object):
         return self.projects
     return None
 
-  def project_list(self,customer = None):
-    raise DeprecationWarning
-    # Make sure we can access the columns by name
-    self.database.row_factory = sqlite3.Row
-
-    # Initialize the projects list
-    projects = {}
-
-    # Build the projects list
-    if customer:
-      cursor = self.database.execute("select * from projects where parent_id = ?", (customer.id,))
-      for row in cursor:
-        projects[row['id']] = row['name']
-
-    return projects
-
 if __name__ == "__main__":
   # Parse command line arguments
   parser = argparse.ArgumentParser(description='Process command line options.')
