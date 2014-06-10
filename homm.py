@@ -82,21 +82,37 @@ class Manager(object):
       print "%s already exists" % obj.id
       return False
 
-  def get(self,type,id):
+  def get(self,type,id = ""):
     if type == "customer":
       return self.customers[id] if id in self.customers else None
     if type == "project":
       return self.projects[id] if id in self.projects else None
 
-  def list(self):
-    raise NotImplementedError
-    customers = []
-    cust_cursor = database.execute("select * from customers")
-    for row in cust_cursor:
-      customers[row['name']] = row['id']
-    return customers
+  def list(self,type,filter = None):
+    if "customer" in type:
+      if filter:
+        customers = {}
+        for id,customer in self.customers.iteritems():
+          for key,value in filter.iteritems():
+            if getattr(customer,key) == value:
+              customers[id] = customer
+        return customers
+      else:
+        return self.customers
+    if "project" in type:
+      if filter:
+        projects = {}
+        for id,project in self.projects.iteritems():
+          for key,value in filter.iteritems():
+            if getattr(project,key) == value:
+              projects[id] = project
+        return projects
+      else:
+        return self.projects
+    return None
 
   def project_list(self,customer = None):
+    raise DeprecationWarning
     # Make sure we can access the columns by name
     self.database.row_factory = sqlite3.Row
 
@@ -158,13 +174,13 @@ if __name__ == "__main__":
 
   schema_version = db.execute("PRAGMA user_version").fetchone()[0]
   log.debug("__main__:Schema version is %s" % schema_version)
-  if schema_version < 1 and not args.migrate:
+  if schema_version < 1 and not (args.migrate or args.test):
     error_message = "Database is v%s, current is %s, run with -m" % (schema_version,str(1))
     log.critical(error_message)
     print error_message
     sys.exit(2)
 
-  if args.migrate:
+  if args.migrate or args.test:
     # Schema v1
     if schema_version < 1:
       with db:
@@ -187,7 +203,8 @@ if __name__ == "__main__":
 
     log.info("__main__:Creating project 'test project'")
     manager.create(Project("test project",customer_id = customer.id))
-    log.info("__main__:Customer '%s' project list is %s" % (customer.name,manager.project_list(customer)))
+    log.info("__main__:Customer '%s' project list is %s" %
+      (customer.name,manager.list("project",{"customer_id":customer.id})))
 
     log.info("__main__:Total project list is %s" % manager.projects)
     log.info("__main__:Deleting data/test.db")
