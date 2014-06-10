@@ -8,8 +8,20 @@ import sqlite3
 from uuid import uuid4
 
 class Entity(object):
-  def __init__(self):
-    raise NotImplementedError
+  def __init__(self,name,id = uuid4(),parameters = None):
+    self.id = id
+    self.name = name
+    self.post_init(parameters)
+
+  def post_init(self,parameters):
+    """This should be overriden to perform any class-specific
+    init actions on the parameters."""
+    if parameters and type(parameters) is dict:
+      for key,value in parameters.iteritems():
+        setattr(self,key,value)
+
+  def __repr__(self):
+    return "%s" % (str(self.name))
 
   def create(self):
     """Returns a dictionary with sql and parameters:
@@ -18,13 +30,6 @@ class Entity(object):
     raise NotImplementedError
 
 class Customer(Entity):
-  def __init__(self,name,id = uuid4()):
-    self.id = id
-    self.name = name
-
-  def __repr__(self):
-    return "%s" % (str(self.name))
-
   def create(self):
     """Return the sql required to create this object"""
     return {"insert into customers values (?,?)":
@@ -35,9 +40,6 @@ class Project(Entity):
     self.id = id
     self.name = name
     self.customer_id = customer_id
-
-  def __repr__(self):
-    return "%s" % (str(self.name))
 
   def create(self):
     """Return the sql required to create this object"""
