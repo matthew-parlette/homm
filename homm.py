@@ -133,6 +133,37 @@ class Manager(object):
         return self.projects
     return None
 
+class MenuItem(object):
+  def __init__(self, entity, parent = None):
+    self.entity = entity
+    self.name = entity.name
+    self.parent = parent
+    if parent:
+      parent.add(self)
+
+  def draw(self):
+    print "    %s" % (self.entity)
+
+class Menu(object):
+  def __init__(self,name,items = None):
+    self.name = name
+    self.items = items or []
+
+  def add(self, item):
+    self.items.append(item)
+    if item.parent != self:
+      item.parent = self
+
+  def remove(self, item):
+    self.items.remove(item)
+    if item.parent == self:
+      item.parent = None
+
+  def draw(self):
+    print "%s\n%s" % (self.name,"=" * len(self.name))
+    for item in self.items:
+      item.draw()
+
 if __name__ == "__main__":
   # Parse command line arguments
   parser = argparse.ArgumentParser(description='Process command line options.')
@@ -243,6 +274,10 @@ if __name__ == "__main__":
     log.debug("__main__:Deleting data/test.db")
     os.remove('data/test.db')
 
-
+  main = Menu("Main Menu")
+  running = True
+  while running:
+    main.draw()
+    running = False
 
   db.close()
