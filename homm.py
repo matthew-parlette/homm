@@ -5,6 +5,8 @@ import logging
 import os
 import sys
 import sqlite3
+import menu
+from getch import _Getch as getch
 from uuid import uuid4
 
 class Entity(object):
@@ -110,59 +112,34 @@ class Manager(object):
       return self.projects[id] if id in self.projects else None
 
   def list(self,type,filter = None):
+    """Return a list of the type specified.
+
+    A filter is applied if provided.
+    Filter is of the form:
+      {"name": "value for name"}
+    """
     self.pre()
     if "customer" in type:
       if filter:
-        customers = {}
+        customers = []
         for id,customer in self.customers.iteritems():
           for key,value in filter.iteritems():
             if getattr(customer,key) == value:
-              customers[id] = customer
+              customers.append(customer)
         return customers
       else:
-        return self.customers
+        return self.customers.values()
     if "project" in type:
       if filter:
-        projects = {}
+        projects = []
         for id,project in self.projects.iteritems():
           for key,value in filter.iteritems():
             if getattr(project,key) == value:
-              projects[id] = project
+              projects.append(project)
         return projects
       else:
-        return self.projects
-    return None
-
-class MenuItem(object):
-  def __init__(self, entity, parent = None):
-    self.entity = entity
-    self.name = entity.name
-    self.parent = parent
-    if parent:
-      parent.add(self)
-
-  def draw(self):
-    print "    %s" % (self.entity)
-
-class Menu(object):
-  def __init__(self,name,items = None):
-    self.name = name
-    self.items = items or []
-
-  def add(self, item):
-    self.items.append(item)
-    if item.parent != self:
-      item.parent = self
-
-  def remove(self, item):
-    self.items.remove(item)
-    if item.parent == self:
-      item.parent = None
-
-  def draw(self):
-    print "%s\n%s" % (self.name,"=" * len(self.name))
-    for item in self.items:
-      item.draw()
+        return self.projects.values()
+    return []
 
 if __name__ == "__main__":
   # Parse command line arguments
@@ -274,10 +251,12 @@ if __name__ == "__main__":
     log.debug("__main__:Deleting data/test.db")
     os.remove('data/test.db')
 
-  main = Menu("Main Menu")
-  running = True
-  while running:
-    main.draw()
-    running = False
+  # Main Menu
+  menu.MainMenu(manager).draw()
+
+  # for menu in ['customers','projects','tasks']:
+  #   # Print menu
+  #   print "%s\n%s" % (menu,"=" * len(menu))
+  #   print "\n".join(manager.list(menu))
 
   db.close()
