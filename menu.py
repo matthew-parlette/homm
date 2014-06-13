@@ -1,3 +1,4 @@
+import homm
 from getch import _Getch as getch
 
 class MainMenu(object):
@@ -13,7 +14,7 @@ class MainMenu(object):
       print "(p)rojects"
       print "(t)asks"
       print "(q)uit"
-      print "> "
+      print ""
       selection = getch()().lower()
       if selection == "q": quit = True
       if selection == "c": CustomersMenu(self.manager).draw()
@@ -24,16 +25,25 @@ class CustomersMenu(object):
     self.manager = manager
 
   def draw(self):
-    customers = self.manager.list("customer")
     quit = False
     while not quit:
+      customers = self.manager.list("customer")
       print "%s\n%s" % (self.name,"=" * len(self.name))
       for i,c in enumerate(customers):
         print "(%s) %s" % (i,c.name)
+      print "(a)dd"
       print "(q)uit"
-      print "> "
+      print ""
       selection = getch()().lower()
+      if selection == "a":
+        print "%s\n%s" % ("New Customer","=" * len("New Customer"))
+        name = raw_input("Name: ")
+        self.manager.create(homm.Customer(name))
       if selection == "q": quit = True
+      try:
+        if int(selection) < len(customers): print "selected %s" % customers[int(selection)].name
+      except ValueError:
+        pass
 
 class Item:
   def __init__(self, name, function, parent=None):

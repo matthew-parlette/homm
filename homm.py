@@ -248,9 +248,6 @@ if __name__ == "__main__":
     except AssertionError, e:
       log.critical("__main__:Test failed\n%s" % str(e))
 
-    log.debug("__main__:Deleting data/test.db")
-    os.remove('data/test.db')
-
   # Main Menu
   menu.MainMenu(manager).draw()
 
@@ -258,5 +255,9 @@ if __name__ == "__main__":
   #   # Print menu
   #   print "%s\n%s" % (menu,"=" * len(menu))
   #   print "\n".join(manager.list(menu))
+
+  if args.test:
+    log.debug("__main__:Deleting data/test.db")
+    os.remove('data/test.db')
 
   db.close()
