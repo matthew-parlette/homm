@@ -10,8 +10,8 @@ from getch import _Getch as getch
 from uuid import uuid4
 
 class Entity(object):
-  def __init__(self,name,id = uuid4(),parameters = None):
-    self.id = id
+  def __init__(self,name,id = None,parameters = None):
+    self.id = id or uuid4()
     self.name = name
     self.post_init(parameters)
 
@@ -50,8 +50,9 @@ class Task(Entity):
       (str(self.id),str(self.name),str(self.parent_id),)}
 
 class Manager(object):
-  def __init__(self, database):
+  def __init__(self, database, log):
     self.database = database
+    self.log = log
     self.refresh()
 
   def pre(self):
@@ -59,6 +60,7 @@ class Manager(object):
     self.refresh()
 
   def refresh(self):
+    self.log.debug("Manager:refresh:Starting refresh")
     # Make sure we can access the columns by name
     self.database.row_factory = sqlite3.Row
 
@@ -68,39 +70,55 @@ class Manager(object):
     self.tasks = {}
 
     # Build the customers list
+    self.log.debug("Manager:refresh:Building customers list")
     cursor = self.database.execute("select * from customers")
     for row in cursor:
+      self.log.debug("Manager:refresh:Adding customer %s with id %s" % (row['name'],row['id']))
       self.customers[row['id']] = Customer(name = row['name'], id = row['id'])
+      self.log.debug("Manager:refresh:Customers list is now %s" % self.customers)
 
     # Build the projects list
+    self.log.debug("Manager:refresh:Building projects list")
     cursor = self.database.execute("select * from projects")
     for row in cursor:
+      self.log.debug("Manager:refresh:Adding project %s with id %s" % (row['name'],row['id']))
       self.projects[row['id']] = Project(name = row['name'],
                                          id = row['id'],
                                          parameters =
                                            {"parent_id": row['parent_id']}
                                         )
+      self.log.debug("Manager:refresh:Projects list is now %s" % self.projects)
 
     # Build the tasks list
+    self.log.debug("Manager:refresh:Building tasks list")
     cursor = self.database.execute("select * from tasks")
     for row in cursor:
+      self.log.debug("Manager:refresh:Adding task %s with id %s" % (row['name'],row['id']))
       self.tasks[row['id']] = Task(name = row['name'],
                                          id = row['id'],
                                          parameters =
                                            {"parent_id": row['parent_id']}
                                         )
+      self.log.debug("Manager:refresh:Tasks list is now %s" % self.tasks)
 
     return True
 
   def create(self,obj):
+    self.log.debug("Manager:create:Starting create")
     # self.pre()
     try:
       with self.database:
         for sql,parameters in obj.create().iteritems():
+          self.log.debug("Manager:create:Executing sql %s with parameters %s" % (sql,parameters))
           self.database.execute(sql, parameters)
+      self.log.debug("Manager:create:Commiting changes")
+      self.database.commit()
+      self.log.debug("Manager:create:Calling refresh")
       self.refresh()
       return True
     except sqlite3.IntegrityError:
+      self.log.critical("Manager:create:%s with id %s already exists" %
+        (obj.__class__.__name__,obj.id))
       print "%s already exists" % obj.id
       return False
 
@@ -199,9 +217,9 @@ if __name__ == "__main__":
     if schema_version < 1:
       with db:
         log.info("__main__:Migrating to schema version 1")
-        db.execute("CREATE TABLE customers (id text, name text)")
-        db.execute("CREATE TABLE projects (id text, name text, parent_id text)")
-        db.execute("CREATE TABLE tasks (id text, name text, parent_id text)")
+        db.execute("CREATE TABLE customers (id text PRIMARY KEY UNIQUE, name text)")
+        db.execute("CREATE TABLE projects (id text PRIMARY KEY UNIQUE, name text, parent_id text)")
+        db.execute("CREATE TABLE tasks (id text PRIMARY KEY UNIQUE, name text, parent_id text)")
         db.execute("PRAGMA user_version = 1")
     tableListQuery = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY Name"
     tables = map(lambda t: t[0], db.execute(tableListQuery).fetchall())
@@ -210,17 +228,20 @@ if __name__ == "__main__":
     assert db.execute("PRAGMA user_version").fetchone()[0] >= 1
     log.debug("__main__:Database schema v1 appears to be correct")
 
-  manager = Manager(db)
+  manager = Manager(db,log)
 
   if args.test:
     log.info("__main__:Running functionality tests")
     try:
       # Customer
       log.info("__main__:Testing Customer")
-      log.debug("__main__:Creating customer 'test'")
-      manager.create(Customer("test"))
+      log.debug("__main__:Creating customer 'customer1'")
+      manager.create(Customer("customer1"))
       log.debug("__main__:Customer list %s" % str(manager.customers))
-      assert len(manager.customers) == 1
+      log.debug("__main__:Creating customer 'customer2'")
+      manager.create(Customer("customer2"))
+      log.debug("__main__:Customer list %s" % str(manager.customers))
+      assert len(manager.customers) == 2
       customer = manager.get("customer",manager.customers.keys()[0])
 
       # Project

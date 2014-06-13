@@ -38,7 +38,9 @@ class CustomersMenu(object):
       if selection == "a":
         print "%s\n%s" % ("New Customer","=" * len("New Customer"))
         name = raw_input("Name: ")
-        self.manager.create(homm.Customer(name))
+        cust = homm.Customer(name)
+        print "Creating customer %s with id %s" % (cust.name,cust.id)
+        self.manager.create(cust)
       if selection == "q": quit = True
       try:
         if int(selection) < len(customers): print "selected %s" % customers[int(selection)].name
